@@ -1,0 +1,205 @@
+#!/usr/bin/env bash
+
+#команды настройки выполнения скрипта
+#прерывать скрипт при любой ошибке;
+#сообщение об ошибке при обнаружении неопределенных переменных
+#настройка пайпа возвращать код ошибки первой упавшей команды.
+set -eu -o pipefail
+
+# Обработка прерывания скриптом (Ctrl+C)
+trap 'log_msg "Скрипт прерван пользователем"; exit 1' INT
+
+#логирование с датой для отладки
+log_msg() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"; }
+
+# Функция проверки установленного пакета
+is_package_installed() {
+    local package="$1"
+    dpkg -s "$package" &>/dev/null
+}
+
+#Установка версии ROS и параметров системной локали
+ROS_DISTRO="jazzy"
+ROS_VERSION="desktop-full"
+#установка и экспорт переменной окружения LANG c базовыми настройками 
+#для текущей сессии терминала и запускаемых в ней программ
+#Нужно убедиться, что наша система использует UTF-8.
+LOCALE="en_US.UTF-8"
+
+#списки устанавливаемых пакетов
+required_packages1=(
+    "curl"           # Загрузка файлов
+    "gnupg2"          # Работа с GPG‑ключами
+    "lsb-release"    # Определение версии дистрибутива
+    "software-properties-common" #установка пакета необходимого для работы с внешними репозиториями
+
+)
+
+required_packages2=(
+    "python3-rosdep"                # Управление зависимостями ROS
+    "python3-rosinstall"            # Работа с репозиториями ROS
+    "python3-rosinstall-generator"  # Генерация списков репозиториев
+    "python3-wstool"                # Управление рабочими пространствами
+    "build-essential"               # Компиляторы и инструменты сборки
+    "python3-pip"
+    "python3-colcon-common-extensions"
+)
+
+#Получение имени пользователя и адреса домашнего каталога
+USERNAME=$(whoami)
+USER_HOME=$(getent passwd "$USERNAME" | cut -d: -f6)
+
+#проверка интернет-соединения
+if ! ping -c 1 github.com &> /dev/null; then
+    log_msg "Отсутствует интернет‑соединение!"
+    exit 1
+fi
+
+#Проверка прав суперпользователя
+if [ "$(id -u)" != "0" ]; then
+    log_msg "Необходимо запустить скрипт от имени root или c sudo"
+    exit 1
+fi
+
+# Установка и настройка локали
+log_msg "Настройка системной локали..."
+apt update
+apt install -y locales
+locale-gen "$LOCALE"
+update-locale LC_ALL="$LOCALE" LANG="$LOCALE"
+export LANG="$LOCALE" LC_ALL="$LOCALE"
+
+#Выполним установку и настройку базовых пакетов
+log_msg "Установка базовых пакетов..."
+for pkg in "${required_packages1[@]}"; do
+    if ! is_package_installed "$pkg"; then
+        log_msg "Пакет $pkg не установлен. Устанавливаем..."
+        apt-get install -y "$pkg"
+    else
+        log_msg "Пакет $pkg уже установлен"
+    fi
+done
+
+# Добавление репозитория ROS1
+log_msg "Добавление репозитория ROS2..."
+add-apt-repository universe
+
+
+#sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
+#log_msg "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list
+
+#Добавление  GPG-ключа ROS
+if ! curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key | tee /usr/share/keyrings/ros-archive-keyring.gpg > /dev/null; then
+    log_msg "Ошибка: не удалось добавить GPG‑ключ ROS"
+    exit 1
+fi
+
+
+#Добавление репозитория в список источников
+
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null
+
+# Обновление списка пакетов
+log_msg "Обновление списка пакетов"
+apt-get update
+
+#Установка ROS2
+if is_package_installed "ros-$ROS_DISTRO-$ROS_VERSION"; then
+    log_msg "Пакет ROS2 уже установлен"
+else
+    echo "Установка ROS2 full версии..."
+    #установка
+    apt-get install -y "ros-$ROS_DISTRO-ROS_VERSION"
+    # Проверка установки
+    if [ ! -d "/opt/ros/$ROS_DISTRO" ]; then
+        log_msg "Ошибка: ROS 2 не установлен!"
+        exit 1
+    fi
+fi
+
+# Определяем домашний каталог пользователя, запустившего скрипт (даже через sudo)
+if [ -n "$SUDO_USER" ]; then
+    # Если скрипт запущен через sudo, берём домашний каталог исходного пользователя
+    USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+elif [ -n "$SUDO_UID" ]; then
+    # Альтернатива: по UID
+    USER_HOME=$(getent passwd "$SUDO_UID" | cut -d: -f6)
+else
+    # Иначе используем текущий $HOME (например, если запущен без sudo)
+    USER_HOME="$HOME"
+fi
+
+# Проверяем, что USER_HOME определён
+if [ -z "$USER_HOME" ]; then
+    log_msg "Ошибка: не удалось определить домашнего каталога пользователя"
+    exit 1
+fi
+
+BASHRC="$USER_HOME/.bashrc"
+
+echo $BASHRC
+
+
+#Настройка окружения
+log_msg "Настройка окружения ROS2..."
+
+# Определяем путь к setup.bash
+ROS_SETUP="/opt/ros/$ROS_DISTRO/setup.bash"
+
+# Проверяем существование файла
+if [ ! -f "$ROS_SETUP" ]; then
+    log_msg "Ошибка: файл $ROS_SETUP не найден!"
+    exit 1
+fi
+
+# Проверяем существование файла
+if [ ! -f $BASHRC ]; then
+    log_msg "Ошибка: файл $BASHRC не найден!"
+    exit 1
+fi
+
+# Проверяем, не добавлена ли строка раньше
+if ! grep -q "source $ROS_SETUP" "$BASHRC"; then
+    echo "source $ROS_SETUP" >> "$BASHRC"
+    log_msg "Строка 'source $ROS_SETUP' добавлена в $BASHRC"
+else
+    log_msg "Строка 'source $ROS_SETUP' уже есть в $BASHRC"
+fi
+
+
+# Применяем настройки в текущем окружении
+set +u #Отключим проверку обнаружения неопределенных переменных
+if source $ROS_SETUP; then
+    log_msg "Окружение ROS2 настроено успешно!"
+else
+    log_msg "Ошибка: не удалось выполнить source $ROS_SETUP"
+    exit 1
+fi
+set -u #Включим проверку обнаружения неопределенных переменных
+
+
+#Установка и настройка дополнительных инструментов
+log_msg "Установка дополнительных инструментов..."
+for pkg in "${required_packages2[@]}"; do
+    if ! is_package_installed "$pkg"; then
+        log_msg "Пакет $pkg не установлен. Устанавливаем..."
+        apt-get install -y "$pkg"
+    else
+        log_msg "Пакет $pkg уже установлен"
+    fi
+done
+
+#инициализация rosdep
+log_msg "Инициализация rosdep.."
+if ! rosdep init; then
+    log_msg "Ошибка: rosdep init failed"
+    exit 1
+fi
+rosdep update
+
+#применение изменений из файла .bashrc в текущей сессии терминала без его перезапуска
+source $ROS_SETUP
+
+#Финальное сообщение
+log_msg "Установка ROS1 завершена успешно!"
+
