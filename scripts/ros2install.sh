@@ -43,6 +43,7 @@ required_packages2=(
     "build-essential"               # Компиляторы и инструменты сборки
     "python3-pip"
     "python3-colcon-common-extensions"
+    "python3-setuptools"
 )
 
 #Получение имени пользователя и адреса домашнего каталога
@@ -98,6 +99,10 @@ fi
 #Добавление репозитория в список источников
 
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null
+if [ $? -ne 0 ]; then
+    log_msg "Ошибка: не удалось записать в sources.list.d"
+    exit 1
+fi
 
 # Обновление списка пакетов
 log_msg "Обновление списка пакетов"
@@ -201,5 +206,5 @@ rosdep update
 source $ROS_SETUP
 
 #Финальное сообщение
-log_msg "Установка ROS1 завершена успешно!"
+log_msg "Установка ROS2 завершена успешно!"
 
