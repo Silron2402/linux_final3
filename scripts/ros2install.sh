@@ -83,7 +83,7 @@ done
 
 # Добавление репозитория ROS1
 log_msg "Добавление репозитория ROS2..."
-add-apt-repository universe
+add-apt-repository universe -y
 
 
 #sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
