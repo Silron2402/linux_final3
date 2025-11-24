@@ -46,9 +46,36 @@ required_packages2=(
     "python3-setuptools"
 )
 
+#Настройки создания workspace 
+# По умолчанию — не создавать workspace
+CREATE_WORKSPACE=false
+
+# анализ аргументов
+for arg in "$@"; do
+    case $arg in
+        -w|--workspace)
+            CREATE_WORKSPACE=true
+            ;;
+        -h|--help)
+            echo "Использование: $0 [опции]"
+            echo "  -w, --workspace  Создать и настроить ROS 2 workspace"
+            echo "  -h, --help       Показать эту справку"
+            exit 0
+            ;;
+        *)
+            echo "Неизвестная опция: $arg"
+            echo "Используйте -h для справки."
+            exit 1
+            ;;
+    esac
+done
+
+
 #Получение имени пользователя и адреса домашнего каталога
 USERNAME=$(whoami)
 USER_HOME=$(getent passwd "$USERNAME" | cut -d: -f6)
+# Путь к рабочей директории
+WORKSPACE_DIR="$USER_HOME/ros2_ws"
 
 #проверка интернет-соединения
 if ! ping -c 1 github.com &> /dev/null; then
@@ -208,3 +235,56 @@ source $ROS_SETUP
 #Финальное сообщение
 log_msg "Установка ROS2 завершена успешно!"
 
+#настройка workspace
+
+if [ "$CREATE_WORKSPACE" = true ]; then
+    log_msg "Начинаем настройку ROS 2 workspace..."
+
+    #Проверка существования workspace
+    if [ -d "$WORKSPACE_DIR" ]; then
+        log_msg "Workspace уже существует: $WORKSPACE_DIR"
+        log_msg "Проверка настройки окружения..."
+    else
+        log_msg "Создаём workspace: $WORKSPACE_DIR"
+        mkdir -p "$WORKSPACE_DIR/src" || {
+            log_msg "Ошибка: не удалось создать директорию $WORKSPACE_DIR"
+            exit 1
+        }
+    fi
+
+    #Инициализация workspace
+    log_msg "Выполняем первую сборку workspace..."
+    cd "$WORKSPACE_DIR" || {
+        log_msg "Ошибка: не удалось перейти в $WORKSPACE_DIR"
+        exit 1
+    }
+    
+    colcon build --symlink-install || {
+        log_msg "Ошибка при сборке workspace. Проверьте зависимости."
+        exit 1
+    }
+
+    #Настройка автоактивации в .bashrc
+    SETUP_FILE="$WORKSPACE_DIR/install/setup.bash"
+
+    if [ -f "$SETUP_FILE" ]; then
+        if ! grep -q "source $SETUP_FILE" "$BASHRC"; then
+            echo "source $SETUP_FILE" >> "$BASHRC"
+            log_msg "Добавлена автоактивация workspace в $BASHRC"
+        else
+            log_msg "Автоактивация workspace уже настроена в $BASHRC"
+        fi
+    else
+        log_msg "Файл $SETUP_FILE не найден. Сборка, возможно, не завершена."
+        exit 1
+    fi
+
+    # 5. Активируем среду в текущем сеансе
+    source "$SETUP_FILE"
+    log_msg "Среда ROS 2 активирована в текущем терминале"
+
+    log_msg "Workspace готов: $WORKSPACE_DIR"
+    log_msg "Для отмены автоактивации удалите строку 'source $SETUP_FILE' из $BASHRC"
+else
+    log_msg "Настройка workspace пропущена (используйте -w или --workspace, чтобы включить)"
+fi
