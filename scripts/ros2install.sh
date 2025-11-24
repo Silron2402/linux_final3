@@ -64,8 +64,8 @@ fi
 
 # Установка и настройка локали
 log_msg "Настройка системной локали..."
-apt update
-apt install -y locales
+apt-get update
+apt-get install -y locales
 locale-gen "$LOCALE"
 update-locale LC_ALL="$LOCALE" LANG="$LOCALE"
 export LANG="$LOCALE" LC_ALL="$LOCALE"
