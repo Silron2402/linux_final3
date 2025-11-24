@@ -89,6 +89,11 @@ if [ "$(id -u)" != "0" ]; then
     exit 1
 fi
 
+if [[ "$UBUNTU_CODENAME" != "jammy" && "$UBUNTU_CODENAME" != "noble" ]]; then
+    log_msg "ROS 2 Jazzy поддерживается только на Ubuntu Jammy (22.04) или Noble (24.04)"
+    exit 1
+fi
+
 # Установка и настройка локали
 log_msg "Настройка системной локали..."
 apt-get update
