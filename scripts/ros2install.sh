@@ -114,7 +114,7 @@ if is_package_installed "ros-$ROS_DISTRO-$ROS_VERSION"; then
 else
     echo "Установка ROS2 full версии..."
     #установка
-    apt-get install -y "ros-$ROS_DISTRO-ROS_VERSION"
+    apt-get install -y "ros-$ROS_DISTRO-$ROS_VERSION"
     # Проверка установки
     if [ ! -d "/opt/ros/$ROS_DISTRO" ]; then
         log_msg "Ошибка: ROS 2 не установлен!"
