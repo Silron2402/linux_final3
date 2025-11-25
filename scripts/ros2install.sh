@@ -235,6 +235,8 @@ log_msg "Инициализация rosdep.."
 if ! rosdep init; then
     log_msg "Ошибка: rosdep init failed"
     exit 1
+else
+    log_msg "Инициализация rosdep... done"    
 fi
 rosdep update
 
