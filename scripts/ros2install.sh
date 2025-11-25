@@ -89,6 +89,8 @@ if [ "$(id -u)" != "0" ]; then
     exit 1
 fi
 
+#ubuntu version
+grep UBUNTU_CODENAME /etc/os-release
 if [[ "$UBUNTU_CODENAME" != "noble" ]]; then
     log_msg "ROS 2 Jazzy поддерживается только на Ubuntu  Noble (24.04)"
     exit 1
