@@ -36,14 +36,15 @@ required_packages1=(
 )
 
 required_packages2=(
-    "python3-rosdep"                # Управление зависимостями ROS
-    "python3-rosinstall"            # Работа с репозиториями ROS
-    "python3-rosinstall-generator"  # Генерация списков репозиториев
-    "python3-wstool"                # Управление рабочими пространствами
-    "build-essential"               # Компиляторы и инструменты сборки
-    "python3-pip"
-    "python3-colcon-common-extensions"
-    "python3-setuptools"
+    "ros-dev-tools"                    # Утилиты командной строки ros2
+    "python3-colcon-common-extensions" # Утилиты для сборки пакетов через colcon
+    #"python3-rosinstall"            # Работа с репозиториями ROS
+    #"python3-rosinstall-generator"  # Генерация списков репозиториев
+    #"python3-wstool"                # Управление рабочими пространствами
+    "build-essential"               # Компиляторы и инструменты сборки (gcc, g++, make)
+    "python3-rosdep"                   # Управление зависимостями ROS
+    "python3-pip"                     # Менеджер пакетов Python
+    "python3-setuptools"              # Для установки Python‑пакетов
 )
 
 #Настройки создания workspace 
