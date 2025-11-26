@@ -230,8 +230,6 @@ for pkg in "${required_packages2[@]}"; do
     fi
 done
 
-pip3 install setuptools
-
 #инициализация rosdep
 log_msg "Инициализация rosdep.."
 if ! rosdep init; then
