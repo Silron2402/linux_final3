@@ -230,15 +230,16 @@ for pkg in "${required_packages2[@]}"; do
     fi
 done
 
+pip3 install setuptools
+
 #инициализация rosdep
 log_msg "Инициализация rosdep.."
 if ! rosdep init; then
     log_msg "Ошибка: rosdep init failed"
     exit 1
-else
-    log_msg "Инициализация rosdep... done"    
 fi
 rosdep update
+log_msg "Инициализация rosdep... done"   
 
 #применение изменений из файла .bashrc в текущей сессии терминала без его перезапуска
 source $ROS_SETUP
